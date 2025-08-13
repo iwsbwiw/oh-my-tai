@@ -1,0 +1,24 @@
+[project]
+name = "oh-my-tai"
+version = "0.1.0"
+description = "LLM-powered script launcher - fast natural language tool execution"
+requires-python = ">=3.8"
+dependencies = [
+    "tomli>=2.0.0; python_version < '3.11'",
+    "tomli-w>=1.0.0",
+]
+
+[project.scripts]
+tai = "tai.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tai"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]

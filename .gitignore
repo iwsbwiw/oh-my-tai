@@ -1,0 +1,10 @@
+# GSD planning
+.planning/
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.Python
+*.so
+
