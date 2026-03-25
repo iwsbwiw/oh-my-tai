@@ -1,4 +1,4 @@
-"""CLI entry point for oh-my-tai."""
+"""oh-my-tai 的 CLI 入口。"""
 import argparse
 import sys
 from typing import Callable
@@ -23,13 +23,13 @@ Be concise in your responses."""
 
 
 def create_execute_tool_callback(tools: list[Tool]) -> Callable[[ToolCall], str]:
-    """Create execute_tool callback with tools context.
+    """基于工具列表创建执行回调。
 
     Args:
-        tools: List of Tool objects from scan_tools_directory.
+        tools: ``scan_tools_directory`` 返回的 ``Tool`` 对象列表。
 
     Returns:
-        Callback function compatible with agentic_loop.
+        与 ``agentic_loop`` 兼容的回调函数。
     """
     def execute_tool_callback(tool_call: ToolCall) -> str:
         result = execute_tool(tool_call, tools)
@@ -39,12 +39,12 @@ def create_execute_tool_callback(tools: list[Tool]) -> Callable[[ToolCall], str]
 
 
 def placeholder_execute_tool(tool_call: ToolCall) -> str:
-    """DEPRECATED: Use create_execute_tool_callback instead."""
+    """已废弃：请改用 ``create_execute_tool_callback``。"""
     return f"[DEPRECATED] Would execute: {tool_call.name}({tool_call.arguments})"
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create and configure argument parser."""
+    """创建并配置命令行参数解析器。"""
     parser = argparse.ArgumentParser(
         prog="tai",
         description="LLM-powered script launcher - fast natural language tool execution",
@@ -70,40 +70,40 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def run_single_shot(command: str) -> int:
-    """Execute a single command and exit."""
+    """执行单次命令并退出。"""
     config = load_config()
     tools = scan_tools_directory(get_tools_directory())
 
-    # Get provider config
+    # 读取 provider 配置
     provider = config.get_provider()
 
-    # Check for API key
+    # 检查 API key
     if not provider.api_key:
         print(f"Error: No API key configured for provider '{config.default_provider}'")
         print(f"Please add your API key to ~/.tai/config.toml")
         print(f"Reminder: Run 'chmod 600 ~/.tai/config.toml' to protect your credentials")
         return 1
 
-    # Create LLM client
+    # 创建 LLM 客户端
     client = LLMClient(
         base_url=provider.base_url,
         api_key=provider.api_key,
         model=provider.model,
     )
 
-    # Build messages
+    # 构造消息列表
     messages = [
         create_system_message(SYSTEM_PROMPT),
         create_user_message(command),
     ]
 
-    # Convert tools to OpenAI format
+    # 转换为 OpenAI 兼容的 tools 格式
     openai_tools = tools_to_openai_format(tools)
 
-    # Create execute callback with tools context
+    # 基于工具上下文创建执行回调
     execute_tool_callback = create_execute_tool_callback(tools)
 
-    # Run agentic loop
+    # 运行 agent loop
     try:
         response = agentic_loop(client, messages, openai_tools, execute_tool_callback)
         print(response)
@@ -114,34 +114,34 @@ def run_single_shot(command: str) -> int:
 
 
 def run_interactive_mode() -> int:
-    """Run interactive REPL mode."""
+    """运行交互式 REPL 模式。"""
     config = load_config()
     tools = scan_tools_directory(get_tools_directory())
 
-    # Get provider config
+    # 读取 provider 配置
     provider = config.get_provider()
 
-    # Check for API key
+    # 检查 API key
     if not provider.api_key:
         print(f"Error: No API key configured for provider '{config.default_provider}'")
         print(f"Please add your API key to ~/.tai/config.toml")
         print(f"Reminder: Run 'chmod 600 ~/.tai/config.toml' to protect your credentials")
         return 1
 
-    # Create LLM client
+    # 创建 LLM 客户端
     client = LLMClient(
         base_url=provider.base_url,
         api_key=provider.api_key,
         model=provider.model,
     )
 
-    # Convert tools to OpenAI format (done once, tools don't change during session)
+    # 工具列表在会话期间不变，因此只需转换一次
     openai_tools = tools_to_openai_format(tools)
 
-    # Create execute callback with tools context
+    # 基于工具上下文创建执行回调
     execute_tool_callback = create_execute_tool_callback(tools)
 
-    # Initialize conversation history with system message
+    # 使用 system message 初始化对话历史
     messages = [create_system_message(SYSTEM_PROMPT)]
 
     print(f"tai interactive mode (provider: {config.default_provider})")
@@ -157,17 +157,17 @@ def run_interactive_mode() -> int:
                 if not user_input:
                     continue
 
-                # Add user message to history
+                # 将用户输入加入历史
                 messages.append(create_user_message(user_input))
 
-                # Run agentic loop
+                # 运行 agent loop
                 try:
                     response = agentic_loop(client, messages, openai_tools, execute_tool_callback)
                     print(response)
                 except RuntimeError as e:
                     print(f"Error: {e}")
-                    # Don't exit on error in interactive mode, allow user to continue
-                    # Remove the failed user message from history
+                    # 交互模式下出错时不退出，允许继续会话
+                    # 同时移除本次失败的用户消息，避免污染历史
                     if messages and messages[-1].get("role") == "user":
                         messages.pop()
 
@@ -182,8 +182,8 @@ def run_interactive_mode() -> int:
 
 
 def main() -> int:
-    """Main entry point."""
-    # Ensure config exists before doing anything
+    """主入口函数。"""
+    # 在执行任何逻辑前先确保配置存在
     ensure_config_exists()
 
     parser = create_parser()

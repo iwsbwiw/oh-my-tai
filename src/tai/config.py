@@ -1,10 +1,10 @@
-"""Configuration management for oh-my-tai."""
+"""oh-my-tai 的配置管理。"""
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# Conditional import for TOML support
+# 根据 Python 版本选择 TOML 解析实现
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -12,14 +12,14 @@ else:
 
 import tomli_w
 
-# Config file locations
+# 配置文件路径
 CONFIG_DIR = Path.home() / ".tai"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 
 @dataclass
 class ProviderConfig:
-    """LLM provider configuration."""
+    """LLM 提供方配置。"""
     api_key: str = ""
     base_url: str = "https://api.openai.com/v1"
     model: str = "gpt-4o-mini"
@@ -27,28 +27,28 @@ class ProviderConfig:
 
 @dataclass
 class ToolsConfig:
-    """Tools directory configuration."""
+    """工具目录配置。"""
     directory: str = field(default_factory=lambda: str(CONFIG_DIR / "tools"))
 
 
 @dataclass
 class Config:
-    """Main configuration container."""
+    """主配置对象。"""
     default_provider: str = "openai"
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
     tools: ToolsConfig = field(default_factory=ToolsConfig)
 
     def get_provider(self, name: Optional[str] = None) -> ProviderConfig:
-        """Get provider config by name or default.
+        """按名称或默认项获取 provider 配置。
 
         Args:
-            name: Provider name to get, or None for default provider.
+            name: 要获取的 provider 名称；为 ``None`` 时使用默认 provider。
 
         Returns:
-            ProviderConfig for the requested provider.
+            对应的 ``ProviderConfig``。
 
         Raises:
-            ValueError: If the provider is not configured.
+            ValueError: 指定的 provider 未配置时抛出。
         """
         provider_name = name or self.default_provider
         if provider_name not in self.providers:
@@ -57,7 +57,7 @@ class Config:
 
 
 def get_default_config_dict() -> dict:
-    """Return default configuration as dictionary."""
+    """以字典形式返回默认配置。"""
     return {
         "default_provider": "openai",
         "providers": {
@@ -74,7 +74,7 @@ def get_default_config_dict() -> dict:
 
 
 def ensure_config_exists() -> Path:
-    """Create config directory and file if they don't exist."""
+    """在配置目录或配置文件不存在时自动创建。"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     (CONFIG_DIR / "tools").mkdir(parents=True, exist_ok=True)
 
@@ -88,7 +88,7 @@ def ensure_config_exists() -> Path:
 
 
 def load_config() -> Config:
-    """Load configuration from file."""
+    """从文件加载配置。"""
     config_path = ensure_config_exists()
 
     with open(config_path, "rb") as f:
@@ -98,7 +98,7 @@ def load_config() -> Config:
     providers_data = data.get("providers", {})
     tools_data = data.get("tools", {})
 
-    # Build providers dict
+    # 组装 providers 配置字典
     providers = {}
     for name, provider_config in providers_data.items():
         providers[name] = ProviderConfig(**provider_config)
@@ -111,6 +111,6 @@ def load_config() -> Config:
 
 
 def get_tools_directory() -> Path:
-    """Get expanded tools directory path."""
+    """获取展开后的工具目录路径。"""
     config = load_config()
     return Path(config.tools.directory).expanduser()

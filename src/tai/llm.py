@@ -1,4 +1,4 @@
-"""LLM data structures and helpers for oh-my-tai."""
+"""oh-my-tai 的 LLM 数据结构与辅助函数。"""
 import json
 import urllib.request
 import urllib.error
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ToolCall:
-    """Represents a tool call from the LLM."""
+    """表示一次来自 LLM 的工具调用。"""
     id: str
     name: str
     arguments: dict
@@ -20,45 +20,45 @@ class ToolCall:
 
 @dataclass
 class LLMResponse:
-    """Parsed LLM response."""
+    """解析后的 LLM 响应。"""
     content: Optional[str] = None
     tool_calls: list[ToolCall] = field(default_factory=list)
     raw_message: dict = field(default_factory=dict)
 
 
 def create_user_message(content: str) -> dict:
-    """Create a user role message.
+    """创建一条 ``user`` 角色消息。
 
     Args:
-        content: The user's message content.
+        content: 用户消息内容。
 
     Returns:
-        Message dict with role="user" and content.
+        包含 ``role="user"`` 和 ``content`` 的消息字典。
     """
     return {"role": "user", "content": content}
 
 
 def create_system_message(content: str) -> dict:
-    """Create a system role message.
+    """创建一条 ``system`` 角色消息。
 
     Args:
-        content: The system message content.
+        content: system message 的内容。
 
     Returns:
-        Message dict with role="system" and content.
+        包含 ``role="system"`` 和 ``content`` 的消息字典。
     """
     return {"role": "system", "content": content}
 
 
 def create_assistant_message(content: Optional[str], tool_calls: list[ToolCall] = None) -> dict:
-    """Create an assistant role message.
+    """创建一条 ``assistant`` 角色消息。
 
     Args:
-        content: The assistant's text content (can be None if only tool calls).
-        tool_calls: Optional list of ToolCall objects.
+        content: assistant 的文本内容；如果只有工具调用可以为 ``None``。
+        tool_calls: 可选的 ``ToolCall`` 列表。
 
     Returns:
-        Message dict with role="assistant", content, and optionally tool_calls.
+        包含 ``role="assistant"``、``content`` 以及可选 ``tool_calls`` 的消息字典。
     """
     msg = {"role": "assistant", "content": content}
     if tool_calls:
@@ -74,66 +74,66 @@ def create_assistant_message(content: Optional[str], tool_calls: list[ToolCall] 
 
 
 def create_tool_result_message(tool_call_id: str, result: str) -> dict:
-    """Create a tool role message with execution result.
+    """创建一条携带执行结果的 ``tool`` 角色消息。
 
     Args:
-        tool_call_id: The ID of the tool call this result corresponds to.
-        result: The tool execution result as a string.
+        tool_call_id: 本结果对应的工具调用 ID。
+        result: 字符串形式的工具执行结果。
 
     Returns:
-        Message dict with role="tool", tool_call_id, and content.
+        包含 ``role="tool"``、``tool_call_id`` 和 ``content`` 的消息字典。
     """
     return {"role": "tool", "tool_call_id": tool_call_id, "content": result}
 
 
-# Default maximum history size (per D-07)
+# 默认最大历史消息数（对应 D-07）
 DEFAULT_MAX_HISTORY = 20
 
-# Maximum tool calling rounds (per D-10)
+# 最大工具调用轮数（对应 D-10）
 MAX_TOOL_ROUNDS = 5
 
-# Type alias for execute_tool callback
+# execute_tool 回调的类型别名
 ExecuteToolCallback = Callable[["ToolCall"], str]
 
 
 def truncate_history(messages: list[dict], max_messages: int = DEFAULT_MAX_HISTORY) -> list[dict]:
-    """Truncate message history while preserving system messages.
+    """裁剪消息历史，并保留 system message。
 
-    Per D-06, D-08: Sliding window truncation that preserves system messages
-    and keeps the most recent user/assistant/tool messages.
+    对应 D-06、D-08：使用滑动窗口方式裁剪历史，
+    保留 system message，同时保留最近的 user/assistant/tool 消息。
 
     Args:
-        messages: List of message dicts with "role" keys.
-        max_messages: Maximum number of messages to keep.
+        messages: 带有 ``role`` 字段的消息字典列表。
+        max_messages: 允许保留的最大消息数。
 
     Returns:
-        Truncated list of messages, or original if under limit.
+        裁剪后的消息列表；如果未超限则返回原列表。
     """
     if len(messages) <= max_messages:
         return messages
 
-    # Separate system messages (always at start) from others
+    # 将 system message 与其他消息分开
     system_messages = [m for m in messages if m.get("role") == "system"]
     other_messages = [m for m in messages if m.get("role") != "system"]
 
-    # Calculate how many non-system messages we can keep
+    # 计算还能保留多少条非 system 消息
     keep_count = max_messages - len(system_messages)
 
-    # If system messages exceed max, just return them all (edge case)
+    # 边界情况：如果 system message 已超过上限，直接全部返回
     if keep_count <= 0:
         return system_messages
 
-    # Return system messages + most recent other messages
+    # 返回 system message 和最近的其他消息
     return system_messages + other_messages[-keep_count:]
 
 
 class LLMClient:
-    """HTTP client for OpenAI-compatible LLM APIs using urllib.
+    """基于 ``urllib`` 的 OpenAI 兼容 LLM HTTP 客户端。
 
-    Per D-01: Uses urllib (stdlib), zero external dependencies.
-    Per D-02: Direct HTTP POST to /chat/completions endpoint.
-    Per D-12: API errors exit directly (raise RuntimeError).
-    Per D-13: Error includes HTTP status and response body.
+    对应 D-01：使用标准库 ``urllib``，不引入额外依赖。
+    对应 D-02：直接向 ``/chat/completions`` 发起 HTTP POST。
+    对应 D-12：API 错误直接抛出 ``RuntimeError``。
+    对应 D-13：错误信息包含 HTTP 状态码和响应体。
     """
 
     def __init__(self, base_url: str, api_key: str, model: str, timeout: int = 60):
@@ -143,17 +143,18 @@ class LLMClient:
         self.timeout = timeout
 
     def call(self, messages: list[dict], tools: list[dict]) -> LLMResponse:
-        """Make a chat completion request with tools.
+        """携带 tools 发起一次 chat completion 请求。
 
         Args:
-            messages: OpenAI-format message list
-            tools: OpenAI-format tools list (each wrapped in {"type": "function", "function": {...}})
+            messages: OpenAI 格式的消息列表。
+            tools: OpenAI 格式的 tools 列表，
+                每项形如 ``{"type": "function", "function": {...}}``。
 
         Returns:
-            LLMResponse with content and parsed tool_calls
+            包含文本内容和解析后 ``tool_calls`` 的 ``LLMResponse``。
 
         Raises:
-            RuntimeError: On HTTP error or network error
+            RuntimeError: 在 HTTP 错误或网络错误时抛出。
         """
         url = f"{self.base_url}/chat/completions"
 
@@ -187,7 +188,7 @@ class LLMClient:
             raise RuntimeError(f"Network error: {e.reason}")
 
     def _parse_response(self, data: dict) -> LLMResponse:
-        """Parse OpenAI response into LLMResponse."""
+        """将 OpenAI 响应解析为 ``LLMResponse``。"""
         message = data.get("choices", [{}])[0].get("message", {})
         content = message.get("content")
         tool_calls = []
@@ -214,39 +215,39 @@ def agentic_loop(
     tools: list[dict],
     execute_tool: ExecuteToolCallback,
 ) -> str:
-    """Run agentic loop until completion or max rounds.
+    """运行 agent loop，直到完成或达到最大轮数。
 
-    Per D-09: Multiple tool_calls execute in parallel, results returned together.
-    Per D-10: Max 5 rounds of tool calling loop.
-    Per D-11: End loop when tool_calls empty or only text response.
+    对应 D-09：多个 ``tool_calls`` 应并行执行，并统一返回结果。
+    对应 D-10：最多进行 5 轮工具调用。
+    对应 D-11：当 ``tool_calls`` 为空或仅返回文本时结束循环。
 
     Args:
-        client: LLMClient instance
-        messages: Conversation history (will be modified in place)
-        tools: OpenAI-format tools list
-        execute_tool: Callback function to execute a ToolCall and return result string
+        client: ``LLMClient`` 实例。
+        messages: 对话历史，会被原地修改。
+        tools: OpenAI 格式的 tools 列表。
+        execute_tool: 用于执行 ``ToolCall`` 并返回结果字符串的回调。
 
     Returns:
-        Final text response from LLM, or "Max tool calling rounds reached"
+        LLM 最终返回的文本；如果超出轮数限制则返回提示字符串。
     """
     for round_num in range(MAX_TOOL_ROUNDS):
-        # Truncate history before each call to prevent token overflow
+        # 每轮调用前先裁剪历史，避免 token 过长
         messages[:] = truncate_history(messages)
 
         response = client.call(messages, tools)
 
-        # Build assistant message with tool_calls for history
+        # 将包含 tool_calls 的 assistant 消息加入历史
         assistant_message = response.raw_message
         messages.append(assistant_message)
 
-        # Check for tool calls
+        # 检查本轮是否有工具调用
         if not response.tool_calls:
-            # No more tools to call - return final text
+            # 没有更多工具调用，直接返回最终文本
             return response.content or ""
 
-        # Execute tools and add results to history
-        # Note: D-09 requires parallel execution, but that's Phase 4 concern
-        # For now, execute sequentially (parallel execution in Phase 4)
+        # 执行工具，并把结果写回历史
+        # 注意：D-09 要求并行执行，但那是后续阶段的工作
+        # 当前实现仍按顺序执行
         for tool_call in response.tool_calls:
             result = execute_tool(tool_call)
             messages.append(create_tool_result_message(tool_call.id, result))
@@ -255,16 +256,17 @@ def agentic_loop(
 
 
 def tools_to_openai_format(tools: list["Tool"]) -> list[dict]:
-    """Convert Tool objects to OpenAI tools format.
+    """将 ``Tool`` 对象转换为 OpenAI tools 格式。
 
-    Per RESEARCH.md Pitfall 1: Tool.to_openai_schema() returns the inner
-    function object, but the API expects {"type": "function", "function": {...}}.
+    对应 ``RESEARCH.md`` 中的 Pitfall 1：``Tool.to_openai_schema()``
+    返回的是内部 function 对象，但 API 期望的格式是
+    ``{"type": "function", "function": {...}}``。
 
     Args:
-        tools: List of Tool objects from tool discovery.
+        tools: 工具发现阶段得到的 ``Tool`` 对象列表。
 
     Returns:
-        List of OpenAI-format tool dicts.
+        OpenAI 格式的工具字典列表。
     """
     return [
         {"type": "function", "function": tool.to_openai_schema()}

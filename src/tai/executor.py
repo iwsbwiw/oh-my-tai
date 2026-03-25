@@ -1,8 +1,8 @@
-"""Script execution with safety checks for oh-my-tai.
+"""oh-my-tai 的脚本执行与基础安全检查。
 
-Per EXEC-01: Tool execution captures both stdout and stderr in structured result.
-Per EXEC-02: Execution times out after configurable period (default 120s).
-Per EXEC-03: Dangerous commands (rm -rf /, sudo, etc.) are blocked before execution.
+对应 EXEC-01：以结构化结果捕获 stdout 和 stderr。
+对应 EXEC-02：执行在可配置时间后超时（默认 120 秒）。
+对应 EXEC-03：在执行前拦截危险命令（如 rm -rf /、sudo 等）。
 """
 import subprocess
 import re
@@ -14,16 +14,16 @@ from .tools import Tool
 from .llm import ToolCall
 
 
-# Default timeout for script execution (per EXEC-02)
+# 默认执行超时时间（对应 EXEC-02）
 DEFAULT_TIMEOUT = 120  # seconds
 
 
 @dataclass
 class ExecutionResult:
-    """Result of a tool execution.
+    """工具执行结果。
 
-    Per EXEC-01, EXEC-04: Structured result with stdout, stderr, return_code
-    for LLM consumption.
+    对应 EXEC-01、EXEC-04：为 LLM 提供包含 stdout、stderr、
+    return_code 的结构化结果。
     """
     success: bool
     stdout: str
@@ -33,10 +33,9 @@ class ExecutionResult:
     timeout: int = DEFAULT_TIMEOUT  # For error message formatting
 
     def to_llm_content(self) -> str:
-        """Format result for LLM consumption.
+        """将结果格式化为适合提供给 LLM 的内容。
 
-        Returns a human-readable string describing the execution result,
-        suitable for feeding back to the LLM.
+        返回一段人类可读的执行结果描述，可直接回填给 LLM。
         """
         if self.timed_out:
             return f"Error: Command timed out after {self.timeout}s"
@@ -53,21 +52,21 @@ class ExecutionResult:
         return "\n".join(parts) if parts else "Command completed successfully (no output)"
 
 
-# Dangerous command patterns (per EXEC-03, RESEARCH.md Pattern 2)
+# 危险命令模式（对应 EXEC-03、RESEARCH.md Pattern 2）
 DANGEROUS_PATTERNS = [
-    # Destructive filesystem operations
+    # 破坏性文件系统操作
     r'\brm\s+-rf\s+/',
     r'\brm\s+-rf\s+~',
     r'\brm\s+-rf\s+\*',
     r'\brm\s+-fr\s+/',
-    # Privilege escalation
+    # 权限提升
     r'\bsudo\s+',
     r'\bsu\s+',
-    # System modification
+    # 系统级修改
     r'\bdd\s+if=',
     r'\bmkfs\b',
     r'\bformat\b',
-    # Network download and execute (remote code execution)
+    # 下载后直接执行（远程代码执行）
     r'\bcurl\s+.*\|\s*bash',
     r'\bwget\s+.*\|\s*bash',
     r'\bcurl\s+.*\|\s*sh',
@@ -79,18 +78,18 @@ DANGEROUS_PATTERNS = [
 
 
 def is_dangerous_command(command: str, args: list[str]) -> bool:
-    """Check if a command matches dangerous patterns.
+    """检查命令是否命中危险模式。
 
-    Per EXEC-03: Blocks dangerous commands before execution.
+    对应 EXEC-03：在执行前阻止危险命令。
 
     Args:
-        command: The script path/command to check.
-        args: List of arguments that will be passed.
+        command: 要检查的脚本路径或命令。
+        args: 即将传入的参数列表。
 
     Returns:
-        True if the command matches dangerous patterns, False otherwise.
+        命中危险模式返回 ``True``，否则返回 ``False``。
     """
-    # Combine command and args for pattern matching
+    # 将命令和参数拼接后统一做模式匹配
     full_command = f"{command} {' '.join(args)}"
 
     for pattern in DANGEROUS_PATTERNS:
@@ -100,21 +99,21 @@ def is_dangerous_command(command: str, args: list[str]) -> bool:
 
 
 def execute_tool(tool_call: ToolCall, tools: list[Tool], timeout: int = DEFAULT_TIMEOUT) -> ExecutionResult:
-    """Execute a tool by name with given arguments.
+    """按名称执行工具，并传入给定参数。
 
-    Per EXEC-01: Captures stdout and stderr in structured result.
-    Per EXEC-02: Times out after configurable period.
-    Per EXEC-03: Blocks dangerous commands before execution.
+    对应 EXEC-01：在结构化结果中捕获 stdout 和 stderr。
+    对应 EXEC-02：按配置超时。
+    对应 EXEC-03：执行前拦截危险命令。
 
     Args:
-        tool_call: ToolCall object with name, arguments, and id.
-        tools: List of available Tool objects to lookup by name.
-        timeout: Maximum execution time in seconds.
+        tool_call: 包含名称、参数和 ID 的 ``ToolCall`` 对象。
+        tools: 可用 ``Tool`` 列表，用于按名称查找。
+        timeout: 最大执行时长，单位为秒。
 
     Returns:
-        ExecutionResult with success status, stdout, stderr, return_code.
+        包含 success、stdout、stderr、return_code 的 ``ExecutionResult``。
     """
-    # Find the tool by name
+    # 按名称查找对应工具
     tool = None
     for t in tools:
         if t.name == tool_call.name:
@@ -129,8 +128,8 @@ def execute_tool(tool_call: ToolCall, tools: list[Tool], timeout: int = DEFAULT_
             return_code=1,
         )
 
-    # Build args list from ToolCall.arguments dict
-    # Arguments are key-value pairs, convert to command-line args
+    # 从 ToolCall.arguments 构造命令行参数
+    # 键值对会被转换为 --key value 形式
     args = []
     for key, value in tool_call.arguments.items():
         if isinstance(value, bool):
@@ -143,7 +142,7 @@ def execute_tool(tool_call: ToolCall, tools: list[Tool], timeout: int = DEFAULT_
             args.append(f"--{key}")
             args.append(str(value))
 
-    # Check for dangerous commands
+    # 执行前先检查危险命令模式
     if is_dangerous_command(str(tool.script_path), args):
         return ExecutionResult(
             success=False,
